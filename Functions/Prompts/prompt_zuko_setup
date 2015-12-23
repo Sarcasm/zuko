@@ -1,0 +1,101 @@
+#-*- sh -*-
+# zuko prompt theme
+
+prompt_zuko_help () {
+  cat <<'EOF'
+This theme tries to put on the left prompt what is essential.
+
+On the right prompt additional information that could be useful is presented.
+It takes longer time to see this information when the shell is in fullscreen.
+
+Right prompt contains vcs_info_msg_0_, feel free to customize the format.
+EOF
+}
+
+prompt_zuko_precmd () {
+    setopt localoptions noxtrace noksharrays
+    psvar[1]=""
+    jobs % >/dev/null 2>&1 && psvar[1]=$(jobs -l | wc -l)
+
+    # for git info
+    vcs_info
+}
+
+prompt_zuko_preview () {
+  local color colors
+  colors=(red yellow green blue magenta)
+
+  if (( ! $#* )); then
+    for (( i = 1; i <= $#colors; i++ )); do
+      color=$colors[$i]
+      prompt_preview_theme zuko $color
+      print
+    done
+    prompt_preview_theme zuko white green blue
+  else
+    prompt_preview_theme zuko "$@"
+  fi
+}
+
+# TODO: SHLEVEL somewhere
+# exit code/SIGNAL can be on the right/RPS1
+#
+# TODO: test the prompt in emacs M-x shell RET
+# issue seems to come from 'zle_bracketed_paste', solution 'unset zle_bracketed_paste'
+# see http://www.zsh.org/mla/users/2015/msg01052.html
+# but emacs also echo back what we enter
+# $ pwd
+# pwd
+# /foo/bar/baz
+# TODO: print username/host only if using SSH?
+# TODO: what is PS2, PS3, ...
+# TODO: RPS1, the job count if any (%j)
+# %L for SHLVL
+# TODO: RPS1 time of the last command if > 2 second?
+# TODO: super complex but mailinfo in this prompt
+# http://www.zsh.org/mla/users/2005/msg00863.html
+# if special characters are desired to draw lines and stuff, one can look at the
+# example here: http://aperiodic.net/phil/prompt/ and man terminfo look for acsc
+# return value ($?) failure in rprompt or on its own line in a multiline prompt?
+# print as many $ as there is SHLEVEl
+prompt_zuko_setup () {
+    autoload -Uz vcs_info
+
+    # start with empty prompt and then append elements to the prompt with += so
+    # that it's easier to document, comment out individual elements
+    PS1=""
+    PS1+='%(2V.%F{green}%2v jobs | %f .)' # jobs (optional)
+    PS1+='%F{red}%35<...<%~%<<%f' # directory
+    PS1+='$ '
+
+    PS2='%(4_:... :)%3_> '
+
+    # # store various components of ps1 into an array so it's easier to describe
+    # # elements individually
+    # rps1=(
+    #     # '%F{red}%3~%f'          # directory
+    #     '%F{red}%35<...<%~%<<%f'
+    #     ' $ ' # finishing sequence, ending with a space to separate prompt and command
+    # )
+    # # join ps1 array into PS1
+    # RPS1="${(j::)rps1}"
+
+    RPS1=""
+    RPS1+='${vcs_info_msg_0_}' # git branch
+    # TODO: repo
+    # TODO: virtualenv
+
+    # detect available colors with `echotc Co` or `tput colors`, if 256 use
+    # enhanced colors? see Character Highlighting in zshzle(1) for 256 color,
+    # check spectrum too:
+    # http://stackoverflow.com/questions/31166479/zsh-prompt-substitution-issues
+    #
+    # do this externally, the prompt should just provide a zstyle theme like
+    # /usr/share/zsh/functions/Misc/sticky-note
+
+    prompt_opts=(cr subst percent)
+
+    add-zsh-hook precmd prompt_zuko_precmd
+}
+
+prompt_zuko_setup "$@"
