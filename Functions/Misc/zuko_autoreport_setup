@@ -52,6 +52,8 @@ zuko_autoreport_precmd() {
 }
 
 zuko_autoreport_setup() {
+    autoload -Uz add-zsh-hook
+
     add-zsh-hook preexec zuko_autoreport_preexec
     add-zsh-hook precmd zuko_autoreport_precmd
 }
