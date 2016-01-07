@@ -1,0 +1,59 @@
+#-*- sh -*-
+# Print some statistics about the last command if something unusual happens,
+# either a long execution time or an unusual exit.
+
+zuko_autoreport_preexec() {
+    _zuko_autoreport_start=$(date '+%s')
+}
+
+zuko_autoreport_precmd() {
+    local exitstatus=$? elapsed=0 format
+    setopt localoptions noxtrace noksharrays
+
+    # for zformat
+    zmodload -i zsh/zutil
+
+    [[ -n $_zuko_autoreport_start ]] && \
+        elapsed=$(( $(date '+%s') - $_zuko_autoreport_start ))
+
+    # SIGINT/^C when editing the command line has an exit status of 1 even if we
+    # did not execute any command. Do not consider $exitstatus if preexec has
+    # not been called beforehand.
+    [[ -z $_zuko_autoreport_start ]] && exitstatus=0
+
+    # do not print timing if elapsed time < 3
+    [[ $elapsed -lt 3 ]] && elapsed=0
+
+    # reset this variable, so we know when preexec has not been called
+    unset _zuko_autoreport_start
+
+    if [[ $exitstatus -gt 128 ]] && (( $+signals[$exitstatus-127] )); then
+        exitstatus_str=SIG$signals[$exitstatus-127]
+    else
+        exitstatus_str=$exitstatus
+    fi
+
+    if [[ $elapsed -gt 0 ]] || [[ ! $exitstatus == 0 ]]; then
+        # grey/discreet color would be a good default
+        zstyle -s ':zuko:autoreport:' text-color textcolor || textcolor=white
+
+        zformat -f format "%F{$textcolor}# command exited\
+%(d.. after%F{green}%(h.. %hh)%(m.. %mmin)%(s.. %s sec%1(s..s))%f)\
+%F{$textcolor}%(?.. with status %F{red}%e)%f" \
+                \?:$exitstatus \
+                e:$exitstatus_str \
+                d:$elapsed \
+                h:$(( $elapsed / 3600 )) \
+                m:$(( ($elapsed % 3600 ) / 60 )) \
+                s:$(( $elapsed % 60))
+
+        print -P -- $format
+    fi
+}
+
+zuko_autoreport_setup() {
+    add-zsh-hook preexec zuko_autoreport_preexec
+    add-zsh-hook precmd zuko_autoreport_precmd
+}
+
+zuko_autoreport_setup "$@"

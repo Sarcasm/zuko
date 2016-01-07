@@ -50,49 +50,7 @@ prompt zuko
 #   "Could not get sha1 for HEAD. Skipping."
 #   something ok for empty repository: git symbolic-ref --short HEAD
 
-
-zuko_autoreport_preexec() {
-    zuko_start=$(date '+%s')
-}
-
-zuko_autoreport_precmd() {
-    local exitstatus=$?
-    setopt localoptions noxtrace noksharrays
-    # FIXME: ^Z should not set the exit status to 20
-    if [[ $exitstatus -gt 128 ]] && (( $+signals[$exitstatus-127] )); then
-        exitstatus=SIG$signals[$exitstatus-127]
-    fi
-
-    # good color is grey if terminal has enough colors
-    zstyle -s ':zuko:autoreport:' text-color textcolor || textcolor=white # 238 seems a fine grey
-
-    # report bad exit status
-    if [[ ! $exitstatus == 0 ]]; then
-        print -P -- "%F{$textcolor}# command exited with status %F{red}$exitstatus%f"
-    fi
-
-    # if elapsed time > 3
-    # process exited [with status STATUS] [after N seconds]
-    # TODO: after 3h 20min and 20 seconds
-    if [[ -n $zuko_start ]]; then
-        local zuko_end=$(date '+%s')
-
-        local zuko_elapsed=$(( $zuko_end - $zuko_start ))
-
-        if [[ $zuko_elapsed -ge 2 ]]; then
-            print -P -- "%F{$textcolor}# command exited after %F{green}$zuko_elapsed%f seconds"
-        fi
-        unset zuko_start
-    fi
-}
-
-#
-# Print some statistics about the last command if something unusual happens,
-# either a long execution time or an unusual exit
-#
-zuko_autoreport_setup() {
-    add-zsh-hook preexec zuko_autoreport_preexec
-    add-zsh-hook precmd zuko_autoreport_precmd
-}
-
+autoload -Uz zuko_autoreport_setup
 zuko_autoreport_setup
+
+[[ $TERM = "xterm-256color" ]] && zstyle ':zuko:autoreport:' text-color 239
