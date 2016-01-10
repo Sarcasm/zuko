@@ -91,8 +91,8 @@ done
 autoload -Uz history-search-end
 zle -N history-beginning-search-backward-end history-search-end
 zle -N history-beginning-search-forward-end history-search-end
-bindkey $key[Up] history-beginning-search-backward-end
-bindkey $key[Down] history-beginning-search-forward-end
+[[ -n $key[Up] ]] && bindkey $key[Up] history-beginning-search-backward-end
+[[ -n $key[Down] ]] && bindkey $key[Down] history-beginning-search-forward-end
 
 # Special keys bindings
 while read special_key binding; do
