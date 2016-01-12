@@ -25,4 +25,5 @@ elif which chromium-browser >& /dev/null; then
     export BROWSER=chromium-browser
 fi
 
+export PAGER='less'
 export EDITOR='emacs -nw -Q'
