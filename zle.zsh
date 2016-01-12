@@ -35,16 +35,56 @@ bindkey -e
 # to add other keys to this hash, see: man 5 terminfo
 typeset -A key
 
-# Make sure the terminal is in application mode, when zle is active,
-# only then are the values from $terminfo valid.
-function zle-line-init () {
-    (( ${+terminfo[smkx]} )) && echoti smkx
-}
-function zle-line-finish () {
-    (( ${+terminfo[rmkx]} )) && echoti rmkx
-}
-zle -N zle-line-init
-zle -N zle-line-finish
+# Make sure the terminal is in "application mode" when zle is active.
+#
+# "Application mode" could be compared to the "num lock", when the mode is
+# entered the keys have different meaning.
+# In this case, the keys produce different output on some terminals.
+# Example:
+# - in xterm right arrow is 'ESC [ C' when in "cursor mode"
+# - 'ESC O C' when in application mode
+# - $terminfo[kcuf1] = 'ESC O C'
+#
+# note: what about $terminfo[cuf1] = 'ESC [ C'?
+#
+# > Apparently, for obscure historic reasons, xterm, like the VT100, has two
+# > "modes" - "cursor mode" and "application mode". Cursor keys in the former
+# > generate escape sequences with "[", and in the latter mode they generate
+# > escape sequences with "O". Editors are *expected* to switch to "application"
+# > mode using the "smkx" terminfo capability when they start, and to go back to
+# > the normal "cursor" mode ("rmkx") when they exit. Since editors are supposed
+# > to do that, they can expect cursor keys to generate the "O" escape
+# > sequences, and this is why the "khome" capability is ^[OH, not ^[[H.
+# -- http://www.zsh.org/mla/users/2010/msg00052.html
+#
+# > As with most things terminal(-emulator)-related, it seems to mostly come
+# > down to hysterical raisins, but the purpose of the two modes seems
+# > similar to what the NumLock key tends to do nowadays.  (That is: lets
+# > you switch between two useful sets of keybindings for the same
+# > ~18-key numerical keypad.)  AFAICT, the VT-100 didn't have a NumLock key[3].
+# >
+# > And, from terminfo, it seems clear that that was the intent (to separate
+# > two different modes for the keypad itself, not to create a semantic
+# > distinction between 'application' and 'normal' modes)[4].
+# -- http://www.zsh.org/mla/users/2010/msg00066.html
+#
+# Something using termcap also exists:
+# - http://www.zsh.org/mla/users/2010/msg00065.html
+#
+# more info:
+# - man terminfo
+# - http://homes.mpimf-heidelberg.mpg.de/~rohm/computing/mpimf/notes/terminal.html
+if (( ${+terminfo[smkx]} )) && (( ${+terminfo[rmkx]} )) ;then
+    function zle-line-init   () {
+        echoti smkx
+    }
+    function zle-line-finish () {
+        echoti rmkx
+    }
+
+    zle -N zle-line-init
+    zle -N zle-line-finish
+fi
 
 key[Home]=${terminfo[khome]}
 key[End]=${terminfo[kend]}
