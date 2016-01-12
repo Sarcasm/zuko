@@ -176,6 +176,9 @@ complete-word-with-dots() {
     #     zstyle ":completion:*" show-completer true
     zle -R "Making completion list..." # same message as Emacs :)
     zle complete-word
+    # redisplay is important otherwise the terminal gets garbage after a ^C on
+    # menu-completion
+    zle redisplay
 }
 zle -N complete-word-with-dots
 bindkey "^I" complete-word-with-dots
