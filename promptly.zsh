@@ -53,4 +53,4 @@ prompt zuko
 autoload -Uz zuko_autoreport_setup
 zuko_autoreport_setup
 
-[[ $TERM = "xterm-256color" ]] && zstyle ':zuko:autoreport:' text-color 239
+[[ $terminfo[colors] -eq 256 ]] && zstyle ':zuko:autoreport:' text-color 239
