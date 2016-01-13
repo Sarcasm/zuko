@@ -1,0 +1,77 @@
+# Read specials keys from the keyboard, a bit like describe-key-briefly.
+# And instead of describing the binding of the keys, it gives as information the
+# $terminfo key(s) corresponding to this key.
+#
+# Example:
+# zuko_terminfo_key
+# key: ^[[1;5C # produced by typing Control-<right> on my terminal
+# name: 'kRIT5' # kRIT5 is Control-<right>
+# use : $terminfo[kRIT5]
+#
+# The terminfo extended names kRIT5, kNXT3, ..., aren't good mnemonic to me so
+# it helps to have this function printing the name of a key that was typed.
+
+local -a capnames=(${(@k)terminfo})
+
+# it seems that extended keys aren't in $terminfo by default,
+# querying them works though
+#
+# The list comes from
+# http://invisible-island.net/ncurses/terminfo.src.html#toc-_X_T_E_R_M__Extensions_
+#
+# Effective values for these modifiers on xterm seems to be
+# http://invisible-island.net/ncurses/terminfo.src.html#tic-xterm_pcc2
+#
+# See also
+# http://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-PC-Style-Function-Keys
+#
+# > The use_extended_names function makes this information conditionally available
+# > to applications. The ncurses library provides the data leaving most of the
+# > behavior to applications: User‐defined capability strings whose name begins
+# > with k are treated as function keys. For example xterm uses this to define
+# > names for modified cursor‐ and editing‐keypad keys, which are just the xterm
+# > modifier code appended to the name of the shifted key. The delete‐key (kdc)
+# > can thus be represented as follows:
+# > Xterm code        Modifier                 Extended Name
+# >
+# > 1 (or missing)    Normal                   kdc
+# > 2                 Shift                    kDC
+# > 3                 Alt                      kDC3
+# > 4                 Shift + Alt              kDC4
+# > 5                 Control                  kDC5
+# > 6                 Shift + Control          kDC6
+# > 7                 Alt + Control            kDC7
+# > 8                 Shift + Alt + Control    kDC8
+#
+#
+#          Alt    Shift-Alt    Control    Shift-Control    Alt-Control
+capnames+=(kUP3     kUP4       kUP5       kUP6             kUP7  # Up
+           kDN3     kDN4       kDN5       kDN6             kDN7  # Down
+           kLFT3    kLFT4      kLFT5      kLFT6            kLFT7 # Left
+           kRIT3    kRIT4      kRIT5      kRIT6            kRIT7 # Right
+           kHOM3    kHOM4      kHOM5      kHOM6            kHOM7 # Home
+           kEND3    kEND4      kEND5      kEND6            kEND7 # End
+           kNXT3    kNXT4      kNXT5      kNXT6            kNXT7 # Page Down
+           kPRV3    kPRV4      kPRV5      kPRV6            kPRV7 # Page Up
+           kIC3     kIC4       kIC5       kIC6             kIC7  # Insert
+           kDC3     kDC4       kDC5       kDC6             kDC7  # Delete
+           kDN kUP                                               # ???
+           ka2 kb1 kb3 kc2                                       # ???
+          )
+
+# use zle .safe keymap so that everything is sent using self-insert instead of
+# being ignored by 'undefined-key'
+# vared uses zle, it executes zle-line-init and zle-line-finish, so the keys are
+# read in "application mode" if supported by zle, all will naturally fall back
+# to "cursor mode" when smkx/rmkx aren't supported
+local capstr
+vared -M .safe -p "key: " capstr
+
+if [[ -n $capstr ]]; then
+    for k in $capnames; do
+        if [[ $terminfo[$k] = $capstr ]]; then
+            echo "name: '$k'"
+            echo "use : \$terminfo[$k]"
+        fi
+    done
+fi

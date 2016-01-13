@@ -100,27 +100,22 @@ key[Down]=${terminfo[kcud1]}
 key[Left]=${terminfo[kcub1]}
 key[Right]=${terminfo[kcuf1]}
 
-# Ctrl/Alt arrow keys, no terminfo for these
-case "$TERM" in
-    xterm|xterm-256color)
-        # tested with Konsole (export itself has xterm) and gnome-terminal
-        # (export itself as xterm-256color)
-        #
-        # set M-Up, C-Up, M-Down, C-Down, ...
-        local c_prefix="\e[1;5" m_prefix="\e[1;3"
-        while read special_key ch; do
-            key[C-$special_key]="${c_prefix}${ch}"
-            key[M-$special_key]="${m_prefix}${ch}"
-        done <<EOF
-   Up A
- Down B
-Right C
- Left D
-  End F
- Home H
-EOF
-        ;;
-esac
+# Some keys like Control-<arrow> aren't supported by default by terminfo but
+# they exists as extended/user-defined capabilities.
+# Use infocmp -x to dump the available extended/user-defined capabilities.
+key[C-Home]=${terminfo[kHOM5]}
+key[C-End]=${terminfo[kEND5]}
+key[C-Up]=${terminfo[kUP5]}
+key[C-Down]=${terminfo[kDN5]}
+key[C-Left]=${terminfo[kLFT5]}
+key[C-Right]=${terminfo[kRIT5]}
+
+key[M-Home]=${terminfo[kHOM3]}
+key[M-End]=${terminfo[kEND3]}
+key[M-Up]=${terminfo[kUP3]}
+key[M-Down]=${terminfo[kDN3]}
+key[M-Left]=${terminfo[kLFT3]}
+key[M-Right]=${terminfo[kRIT3]}
 
 # autoload the functions from Functions/Zle and declare them as widgets,
 # so one only need to bind them
@@ -128,6 +123,8 @@ for widget in $ZUKODIR/Functions/Zle/*; do
     autoload -Uz ${widget:t}
     zle -N ${widget:t}
 done
+
+autoload -Uz zuko_terminfo_key
 
 # Rebind arrow up/down so that they search the history from what's currently
 # typed on the command line
