@@ -148,16 +148,6 @@ M-Right emacs-forward-word
 C-Right emacs-forward-word
 EOF
 
-# I really like push-line (^Q) and it is not usable by default due to flow
-# control, so disable flow control via the ZSH option.
-#
-# Note: flow control could also be disabled with `stty -ixon` or ^S and ^Q can
-# remapped using `stty start` and `stty stop`.
-#
-# Option found in the ZSH Guide > 4.4.2: Searching through the history > Ordinary searching
-# http://zsh.sourceforge.net/Guide/zshguide04.html
-unsetopt flowcontrol
-
 # Note: somehow \e-X and \M-X are not the same in ZSH, so I have to use the
 # unfamiliar \e notation instead of the Emacs notation M-, will have to get used
 # to it I guess
