@@ -3,6 +3,9 @@
 # uses the good advices from the wiki.
 # - http://zshwiki.org/home/zle/bindkeys
 
+zmodload zsh/terminfo
+zmodload zsh/zle
+
 # use emacs as main keymap, even if EDITOR/VISUAL is vi
 bindkey -e
 
@@ -237,6 +240,8 @@ run-help-repo() {
 # bracketed space is not such a bad idea for security purposes when pasting
 # stuff from untrusted sources but I got used to copy-paste multiple commands
 # from wiki or things like that
-# moreover this display bad in M-x shell RET but that could be fixed
-# specifically if it was only that
+# moreover this display bad characters in emacs' 'M-x shell RET', it prints
+# 'ESC[?2004h' after the prompt, but that could be fixed specifically if it was
+# only that
+# http://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Bracketed-Paste-Mode
 unset zle_bracketed_paste
