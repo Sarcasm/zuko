@@ -65,6 +65,11 @@ function {
 }
 
 function ssh-copy-terminfo {
-    # could ssh-copy-termcap be needed? can use infotocap
-    infocmp | ssh $1 'TMP=$(mktemp) && cat > $TMP; tic -o ~/.terminfo/ "$TMP" && rm "$TMP"'
+    if [[ $# -ne 1 ]]; then
+        1>&2 echo "Usage: $0 [user@]hostname"
+        false
+    else
+        # could ssh-copy-termcap be needed? can use infotocap
+        infocmp | ssh $1 'TMP=$(mktemp) && cat > $TMP; tic -o ~/.terminfo/ "$TMP" && rm "$TMP"'
+    fi
 }
