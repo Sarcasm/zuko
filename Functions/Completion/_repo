@@ -1,0 +1,296 @@
+#compdef repo
+
+# ~/src/zsh/Etc/completion-style-guide
+# https://github.com/zsh-users/zsh/blob/master/Etc/completion-style-guide
+# https://github.com/zsh-users/zsh/blob/0194b4ab1d0fc6aeae5416edb0122146da9646c9/Etc/completion-style-guide#L480-L494
+# http://stackoverflow.com/questions/9000698/completion-when-program-has-sub-commands
+# TODO: list programs, function and styles used
+
+(( $+functions[__repo-help] )) ||
+_repo-help() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(- :)'{-a,--all}'[show the complete list of commands and exit]' \
+    ': :_repo_commands'
+}
+
+# TODO: --manifest-url/--repo-url should be use __git_any_repositories instead of _urls?
+# TODO: --manifest-branch/--repo-branch should be __git_*revision*?
+# TODO: for --depth use __git_guard_number depth
+# TODO: could have completion for --groups=, --platform=
+(( $+functions[__repo-init] )) ||
+_repo-init() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-q --quiet)'{-q,--quiet}'[be quiet]' \
+    '(-u --manifest-url)'{-u,--manifest-url=-}'[manifest repository location]: :_urls' \
+    '(-b --manifest-branch)'{-b,--manifest-branch=-}'[manifest branch or revision]:revision:' \
+    '(-m --manifest-name)'{-m,--manifest-name=-}'[initial manifest file]:name.xml:' \
+    '--mirror[create a replica of the remote repositories rather than a client working directory]' \
+    '--reference=-[location of mirror directory]: :_directories' \
+    '--depth=-[create a shallow clone with given depth]:depth:' \
+    '--archive[checkout an archive instead of a git repository for each project]' \
+    '(-g --groups)'{-g,--groups=-}'[restrict manifest projects to ones with specified group(s)]:group:' \
+    '(-p --platform)'{-p,--platform=-}'[restrict manifest projects to ones with a specified platform group]:platform:' \
+    '--repo-url=-[repo repository location]: :_urls' \
+    '--repo-branch=-[repo branch or revision]:revision:' \
+    '--no-repo-verify[do not verify repo source code]' \
+    '--config-name[Always prompt for name/e-mail]'
+}
+
+# TODO: branch completion
+# TODO: project completion based on selected branch
+(( $+functions[__repo-abandon] )) ||
+_repo-abandon() {
+  local curcontext="$curcontext"
+
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-): :__repo_branch' \
+    '(-)*:: :->project'
+
+  case $state in
+    (project)
+      __repo_projects_with_branch $line[1]
+      ;;
+  esac
+}
+
+(( $+functions[__repo-branch] )) ||
+_repo-branch() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    "(-)*::projects:$(__repo_list_projects_relatives)"
+}
+
+(( $+functions[__repo-branches] )) ||
+_repo-branches() {
+  _repo-branch
+}
+
+# 2 categories
+# main commands - commonly used commands
+# expert commands - other[ recognized]/expert commands
+(( $+functions[__repo_commands] )) ||
+_repo_commands() {
+  local -a initial_commands
+  local -a main_commands
+  local -a advanced_commands
+
+  initial_commands=(
+    init:"install repo in the current working directory"
+    help:"display list of commands"
+  )
+
+  main_commands=(
+    abandon:"permanently abandon a development branch"
+    branch:"view current topic branches"
+    branches:"view current topic branches"
+
+    # checkout:"checkout a branch for development"
+    # cherry-pick:"cherry-pick a change"
+    # diff:"show changes between commit and working tree"
+    # diffmanifests:"manifest diff utility"
+    # download:"download and checkout a change"
+    # grep:"print lines matching a pattern"
+    # info:"get info on the manifest branch, current branch or unmerged branches"
+    # init:"initialize repo in the current directory"
+    # list:"list projects and their associated directories"
+    # overview:"display overview of unmerged project branches"
+    # prune:"prune (delete) already merged topics"
+    # rebase:"rebase local branches on upstream branch"
+    # smartsync:"update working tree to the latest known good revision"
+    # stage:"stage file(s) for commit"
+    # start:"start a new branch for development"
+    # status:"show the working tree status"
+    # sync:"update working tree to the latest revision"
+    # upload:"upload changes for code review"
+  )
+
+  advanced_commands=(
+    forall:"Run a shell command in each project"
+  )
+
+  # TODO: git somewhow manage to have multiple groups for this, see:
+  #     cmdtypes=(main_porcelain_commands user_commands, ...)
+  # FIXME: here I managed to do it by I cannot use the "standard" tag "commands"
+  #        so I don't think it is the proper way to proceed
+  _describe -t repo-commands "command" initial_commands -- main_commands
+  _describe -t repo-other-commands "advanced command" advanced_commands
+}
+
+# http://unix.stackexchange.com/a/64164
+# FIXME: /Y1, which version of ZSH required for this?
+(( $+functions[__repodir] )) ||
+__repodir () {
+  echo (../)#.repo(/Y1:a:h)
+}
+
+(( $+functions[__repo_projects_fullpath] )) ||
+__repo_projects_fullpath () {
+  _call_program repo-list-projects repo list --fullpath --path-only
+}
+
+# FIXME: hideous
+# (( $+functions[__repo_project_branches] )) ||
+# __repo_project_branches () {
+#   GIT_DIR=$1/.git git --no-pager -c core.preloadindex=true for-each-ref "--format=%(refname:short)" refs/heads
+# }
+
+(( $+functions[__repo_project_branches] )) ||
+__repo_project_branches () {
+  #FIXME: not working? _call_program project-branches
+  git -C "$1" \
+      --no-pager -c core.preloadindex=true \
+      for-each-ref "--format=%(refname:short)" refs/heads
+}
+
+# TODO: implement this
+# should we put the branches available in the current directory first?
+(( $+functions[__repo_branch] )) ||
+__repo_branch () {
+  local -A branch_to_projects
+  local repodir=$(__repodir)
+
+  # list branches project by project
+  for p in $(__repo_projects_fullpath); do
+    local p_rel=$(_call_program relpath realpath --relative-to=$repodir "$p")
+
+    for b in $(__repo_project_branches $p); do
+      if [[ -z branch_to_projects[$b] ]]; then
+        # first time seeing this branch
+        branch_to_projects[$b]=$p_rel
+      else
+        # another project
+        branch_to_projects[$b]+=$'\0'$p_rel
+      fi
+    done
+  done
+
+  local -a descr projects
+  for k v in "${(@kv)branch_to_projects}"; do
+    # projects to sorted array
+    projects=(${(@0o)v})
+    descr+=($k:"in "${(j:, :)projects})
+  done
+  # branches=("${(@f)$(__repo_list_branches)}")
+  # _wanted projects expl "branch" compadd -a - branches
+  # _message -e branches "branch"
+  _describe -V -t branches 'branch' descr
+}
+
+# list repo paths relative to current directory
+# . is selected first, then subpaths, parent/sibling paths
+# TODO: check presence of realpath
+# TODO: the current project, which can be called '.' is the shortest path
+# composed only of dots and slashes
+(( $+functions[__repo_list_projects_relatives] )) ||
+__repo_list_projects_relatives () {
+  local p current_project p_rel mydir=$(pwd)
+  local -a projects
+
+  # --filter-branch foo
+  # zparseopts -filter-branch
+
+  for p in $(__repo_projects_fullpath); do
+    p_rel=$(_call_program relpath realpath --relative-to=$mydir "$p")
+    if [[ $p_rel != [^./] ]] && \
+         [[ -z $current_project || $p_rel < $current_project ]]; then
+      # the first parent project can be transformed by '.' instead of ..,
+      # ../.., ../../etc
+      current_project=$p_rel
+    fi
+    projects+=($p_rel)
+  done
+
+  [[ -n $current_project ]] && projects[${projects[(i)$current_project]}]=.
+
+  for project in $projects; echo $project
+}
+
+# TODO: remove previous projects
+# TODO: list projects relative to current directory, then sub-paths then ../*
+# TODO: could use _tags which will use tag-order to order current directory,
+# sub-path, parent/or/siblings
+# TODO: could use the path relative to the repo project as description, but only
+# if not at the repo root
+# TODO: paths with only .. / ../.. / etc should have a description with the path
+# relative to the repo root to make it easier to understand
+(( $+functions[__repo_projects_with_branch] )) ||
+__repo_projects_with_branch () {
+  local expl
+
+  for project in $(__repo_list_projects_relatives); do
+    for branch in $(__repo_project_branches $project); do
+      [[ $branch = $1 ]] && _wanted projects expl "projects" compadd - "$project"
+    done
+  done
+}
+
+# stolen from _git
+(( $+functions[__repo_color_whens] )) ||
+__repo_color_whens () {
+  local -a whens
+
+  whens=(
+    always:'always use colors'
+    auto:'use colors if output is to a terminal'
+    never:'never use colors'
+  )
+
+  _describe -t whens "when" whens $*
+}
+
+# TODO: completion for repo command in non-initialized repo
+#       the set of option/subcommands available is different/limited
+#       called "repo launcher" by repo --version
+_repo() {
+  # autoload +X _git required if git functions are re-used
+
+  local -a base_opts
+  base_opts=(
+    '(- :)'{-h,--help}'[show help message and exit]'
+    '(-p --paginate)'{-p,--paginate}'[command output in the pager]'
+    '--no-pager[disable the pager]'
+    '--color=-[control color usage]: :__repo_color_whens'
+    '--trace[trace git command execution]'
+    '--time[time repo command execution]'
+    '(- :)--version[display this version of repo and exit]'
+  )
+
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  _arguments -C -S : \
+             "${base_opts[@]}" \
+             '(-): :_repo_commands' \
+             '(-)*:: :->option-or-argument'
+
+  # complete <command> arguments
+  # if a function exists _repo-<command> call it,
+  # otherwise do like git and use 'use-fallback'
+  if [[ $state = option-or-argument ]]; then
+    integer ret=1
+    curcontext=${curcontext%:*:*}:repo-$words[1]:
+
+    if ! _call_function ret _repo-$words[1]; then
+      if zstyle -T :completion:$curcontext: use-fallback; then
+        _default && ret=0
+      else
+        _message "unknown sub-command: $words[1]"
+      fi
+    fi
+    return $ret
+  fi
+
+  return 0
+}
+
+_repo "$@"
+
+# Local Variables:
+# mode: Shell-Script
+# sh-indentation: 2
+# indent-tabs-mode: nil
+# sh-basic-offset: 2
+# End:
+# vim: ft=zsh sw=2 ts=2 et
