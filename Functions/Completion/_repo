@@ -6,6 +6,9 @@
 # http://stackoverflow.com/questions/9000698/completion-when-program-has-sub-commands
 # TODO: list programs, function and styles used
 
+# TODO: review _arguments to see if -C is really needed everywhere it is used, I
+# may have overused it
+
 (( $+functions[__repo-help] )) ||
 _repo-help() {
   _arguments \
@@ -60,7 +63,7 @@ _repo-abandon() {
 _repo-branch() {
   _arguments \
     '(- :)'{-h,--help}'[show help message and exit]' \
-    "(-)*::projects:__repo_projects"
+    '(-)*::projects:__repo_projects'
 }
 
 (( $+functions[__repo-branches] )) ||
@@ -99,7 +102,93 @@ _repo-diff() {
   _arguments -C \
     '(- :)'{-h,--help}'[show help message and exit]' \
     '(-u --absolute)'{-u,--absolute}'[paths are relative to the repository root]' \
-    "(-)*::projects:__repo_projects"
+    '(-)*::projects:__repo_projects'
+}
+
+(( $+functions[_repo-diffmanifests] )) ||
+_repo-diffmanifests() {
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '--raw[display raw diff]' \
+    '--no-color[does not display the diff in color]' \
+    '(-):manifest1:_files -g \*.xml' \
+    '(-)::manifest2:_files -g \*.xml'
+}
+
+# TODO: it is a pair of parameters that repo download takes
+# can -c be interleaved between the set?
+# TODO: completion from open reviews on gerrit
+(( $+functions[_repo-download] )) ||
+_repo-download() {
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-c --cherry-pick)'{-c,--cherry-pick}'[cherry-pick instead of checkout]' \
+    '(-r --revert)'{-r,--revert}'[revert instead of checkout]' \
+    '(-f --ff-only)'{-f,--ff-only}'[force fast-forward merge]' \
+    ':project:__repo_projects' \
+    ':change/patchset: '
+}
+
+(( $+functions[_repo-grep] )) ||
+_repo-grep() {
+  # TODO: implement this
+}
+
+# TODO: short options can be shortened like with tar -d -l -> -dl
+(( $+functions[_repo-info] )) ||
+_repo-info() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-d --diff)'{-d,--diff}'[show full info and commit diff including remote branches]' \
+    '(-o --overview)'{-o,--overview}'[show overview of all local commits]' \
+    '(-b --current-branch)'{-b,--current-branch}'[consider only checked out branches]' \
+    '(-l --local-only)'{-l,--local-only}'[disable all remote operations]' \
+    '(-)*::projects:__repo_projects'
+}
+
+# TODO: implement the regex usage
+# TODO: short option can be combined
+(( $+functions[_repo-list] )) ||
+_repo-list() {
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-r --regex)'{-r,--regex}'[filter the project list based on regex or wildcard matching of strings]' \
+    '(-g --groups)'{-g,--groups=-}'[filter the project list based on the groups the project is in]:group:' \
+    '(-f --fullpath)'{-f,--fullpath}'[display the full work tree path instead of the relative path]' \
+    '(-n --name-only)'{-n,--name-only}'[display only the name of the repository]' \
+    '(-p --path-only)'{-p,--path-only}'[display only the path of the repository]' \
+    '(-)*::projects:__repo_projects'
+}
+
+(( $+functions[_repo-overview] )) ||
+_repo-overview() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-b --current-branch)'{-b,--current-branch}'[consider only checked out branches]' \
+    '(-)*::projects:__repo_projects'
+}
+
+# TODO: complete only projects with active (merged?) branches
+(( $+functions[_repo-prune] )) ||
+_repo-prune() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-)*::projects:__repo_projects'
+}
+
+# TODO: --interactive is single project only
+(( $+functions[_repo-rebase] )) ||
+_repo-rebase() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-i --interactive)'{-i,--interactive}'[interactive rebase (single project only)]' \
+    '(-f --force-rebase)'{-f,--force-rebase}'[pass --force-rebase to git rebase]' \
+    '--no-ff[pass --no-ff to git rebase]' \
+    '(-q --quiet)'{-q,--quiet}'[pass --quiet to git rebase]' \
+    '--autosquash[pass --autosquash to git rebase]' \
+    '--whitespace=-[pass --whitespace to git rebase]: :__repo_whitespace_action' \
+    '--auto-stash[stash local modifications before starting]' \
+    '(-)*::projects:__repo_projects'
 }
 
 # 2 categories
@@ -122,16 +211,15 @@ _repo_commands() {
     branches:"view current topic branches"
     checkout:"checkout a branch for development"
     diff:"show changes between commit and working tree"
+    diffmanifests:"manifest diff utility"
+    download:"download and checkout a change"
+    grep:"print lines matching a pattern"
+    info:"get info on the manifest branch, current branch or unmerged branches"
+    list:"list projects and their associated directories"
+    overview:"display overview of unmerged project branches"
+    prune:"prune (delete) already merged topics"
+    rebase:"rebase local branches on upstream branch"
 
-    # diffmanifests:"manifest diff utility"
-    # download:"download and checkout a change"
-    # grep:"print lines matching a pattern"
-    # info:"get info on the manifest branch, current branch or unmerged branches"
-    # init:"initialize repo in the current directory"
-    # list:"list projects and their associated directories"
-    # overview:"display overview of unmerged project branches"
-    # prune:"prune (delete) already merged topics"
-    # rebase:"rebase local branches on upstream branch"
     # smartsync:"update working tree to the latest known good revision"
     # stage:"stage file(s) for commit"
     # start:"start a new branch for development"
@@ -234,6 +322,7 @@ __repo_branch () {
 # if not at the repo root
 # TODO: paths with only .. / ../.. / etc should have a description with the path
 # relative to the repo root to make it easier to understand
+# TODO: could use repo list -fp . to determine the current project
 (( $+functions[__repo_projects] )) ||
 __repo_projects () {
   local p current_project p_rel mydir=$(pwd) keep
@@ -275,6 +364,21 @@ __repo_projects () {
 
     _wanted projects expl "projects" compadd - "$project"
   done
+}
+
+(( $+functions[__repo_whitespace_action] )) ||
+__repo_whitespace_action () {
+  local -a actions
+
+  actions=(
+    nowarn:"turns off the trailing whitespace warning"
+    warn:"outputs warnings for a few such errors, but applies the patch as-is (default)"
+    {fix,strip}:"outputs warnings for a few such errors, and applies the patch after fixing them"
+    error:"outputs warnings for a few such errors, and refuses to apply the patch"
+    error-all:"is similar to error but shows all errors"
+  )
+
+  _describe -t whitespace-action "action" actions $*
 }
 
 # stolen from _git
