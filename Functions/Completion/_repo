@@ -68,6 +68,40 @@ _repo-branches() {
   _repo-branch
 }
 
+(( $+functions[_repo-checkout] )) ||
+_repo-checkout() {
+  local curcontext="$curcontext"
+
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-): :__repo_branch' \
+    '(-)*:: :->project'
+
+  case $state in
+    (project)
+      __repo_projects --with-branch $line[1]
+      ;;
+  esac
+}
+
+# TODO: list commits only present in other branches?
+# can be costly on things like diverging linux kernels, should be limited to
+# like ~10 commits like __git_recent_<something>
+(( $+functions[_repo-cherry-pick] )) ||
+_repo-cherry-pick() {
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-):sha1::'
+}
+
+(( $+functions[_repo-diff] )) ||
+_repo-diff() {
+  _arguments -C \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-u --absolute)'{-u,--absolute}'[paths are relative to the repository root]' \
+    "(-)*::projects:__repo_projects"
+}
+
 # 2 categories
 # main commands - commonly used commands
 # expert commands - other[ recognized]/expert commands
@@ -86,10 +120,9 @@ _repo_commands() {
     abandon:"permanently abandon a development branch"
     branch:"view current topic branches"
     branches:"view current topic branches"
+    checkout:"checkout a branch for development"
+    diff:"show changes between commit and working tree"
 
-    # checkout:"checkout a branch for development"
-    # cherry-pick:"cherry-pick a change"
-    # diff:"show changes between commit and working tree"
     # diffmanifests:"manifest diff utility"
     # download:"download and checkout a change"
     # grep:"print lines matching a pattern"
@@ -106,6 +139,9 @@ _repo_commands() {
     # sync:"update working tree to the latest revision"
     # upload:"upload changes for code review"
   )
+
+  # 'cherry-pick' only has sense when in a project
+  >& /dev/null __gitroot && main_commands+=(cherry-pick:"cherry-pick a change")
 
   advanced_commands=(
     forall:"Run a shell command in each project"
@@ -126,6 +162,11 @@ __repodir () {
   echo (../)#.repo(/Y1:a:h)
 }
 
+(( $+functions[__gitroot] )) ||
+__gitroot () {
+  _call_program git-root git rev-parse --show-toplevel
+}
+
 (( $+functions[__repo_project_branches] )) ||
 __repo_project_branches () {
   #FIXME: _call_program project-branches not working?
@@ -140,6 +181,10 @@ __repo_projects_fullpath () {
 }
 
 # should we put the branches available in the current directory first?
+#
+# TODO: for abandon and checkout this could be made better
+# we could want to separate active vs inactive branches in different groups
+# for checkout we would want to favor non-checked out branches
 (( $+functions[__repo_branch] )) ||
 __repo_branch () {
   local -A branch_to_projects
