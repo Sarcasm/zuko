@@ -51,7 +51,7 @@ _repo-abandon() {
 
   case $state in
     (project)
-      __repo_projects_with_branch $line[1]
+      __repo_projects --with-branch $line[1]
       ;;
   esac
 }
@@ -60,7 +60,7 @@ _repo-abandon() {
 _repo-branch() {
   _arguments \
     '(- :)'{-h,--help}'[show help message and exit]' \
-    "(-)*::projects:$(__repo_list_projects_relatives)"
+    "(-)*::projects:__repo_projects"
 }
 
 (( $+functions[__repo-branches] )) ||
@@ -126,26 +126,19 @@ __repodir () {
   echo (../)#.repo(/Y1:a:h)
 }
 
-(( $+functions[__repo_projects_fullpath] )) ||
-__repo_projects_fullpath () {
-  _call_program repo-list-projects repo list --fullpath --path-only
-}
-
-# FIXME: hideous
-# (( $+functions[__repo_project_branches] )) ||
-# __repo_project_branches () {
-#   GIT_DIR=$1/.git git --no-pager -c core.preloadindex=true for-each-ref "--format=%(refname:short)" refs/heads
-# }
-
 (( $+functions[__repo_project_branches] )) ||
 __repo_project_branches () {
-  #FIXME: not working? _call_program project-branches
+  #FIXME: _call_program project-branches not working?
   git -C "$1" \
       --no-pager -c core.preloadindex=true \
       for-each-ref "--format=%(refname:short)" refs/heads
 }
 
-# TODO: implement this
+(( $+functions[__repo_projects_fullpath] )) ||
+__repo_projects_fullpath () {
+  _call_program repo-list-projects repo list --fullpath --path-only
+}
+
 # should we put the branches available in the current directory first?
 (( $+functions[__repo_branch] )) ||
 __repo_branch () {
@@ -181,20 +174,34 @@ __repo_branch () {
 
 # list repo paths relative to current directory
 # . is selected first, then subpaths, parent/sibling paths
+#
+# Supported options:
+# --with-branch BRANCH (can be specified multiple times)
+#
 # TODO: check presence of realpath
 # TODO: the current project, which can be called '.' is the shortest path
 # composed only of dots and slashes
-(( $+functions[__repo_list_projects_relatives] )) ||
-__repo_list_projects_relatives () {
-  local p current_project p_rel mydir=$(pwd)
-  local -a projects
+# TODO: remove previous projects
+# TODO: list projects relative to current directory, then sub-paths then ../*
+# TODO: could use _tags which will use tag-order to order current directory,
+# sub-path, parent/or/siblings
+# TODO: could use the path relative to the repo project as description, but only
+# if not at the repo root
+# TODO: paths with only .. / ../.. / etc should have a description with the path
+# relative to the repo root to make it easier to understand
+(( $+functions[__repo_projects] )) ||
+__repo_projects () {
+  local p current_project p_rel mydir=$(pwd) keep
+  local -a projects branches
 
-  # --filter-branch foo
-  # zparseopts -filter-branch
+  zparseopts -D -E -- -with-branch+:=branches
+
+  branches=("${(@)branches:#--with-branch}")
 
   for p in $(__repo_projects_fullpath); do
     p_rel=$(_call_program relpath realpath --relative-to=$mydir "$p")
-    if [[ $p_rel != [^./] ]] && \
+
+    if [[ $p_rel != *[^./]* ]] && \
          [[ -z $current_project || $p_rel < $current_project ]]; then
       # the first parent project can be transformed by '.' instead of ..,
       # ../.., ../../etc
@@ -205,25 +212,23 @@ __repo_list_projects_relatives () {
 
   [[ -n $current_project ]] && projects[${projects[(i)$current_project]}]=.
 
-  for project in $projects; echo $project
-}
+  for project in $projects; do
+    keep=1
 
-# TODO: remove previous projects
-# TODO: list projects relative to current directory, then sub-paths then ../*
-# TODO: could use _tags which will use tag-order to order current directory,
-# sub-path, parent/or/siblings
-# TODO: could use the path relative to the repo project as description, but only
-# if not at the repo root
-# TODO: paths with only .. / ../.. / etc should have a description with the path
-# relative to the repo root to make it easier to understand
-(( $+functions[__repo_projects_with_branch] )) ||
-__repo_projects_with_branch () {
-  local expl
+    # if --with-branch is specified, keep only projects whose branches match
+    if (( ${+branches[1]} )); then
+      keep=0
+      for branch in $(__repo_project_branches $project); do
+        if [[ ${branches[(i)$branch]} -le ${#branches} ]]; then
+          keep=1
+          break
+        fi
+      done
+    fi
 
-  for project in $(__repo_list_projects_relatives); do
-    for branch in $(__repo_project_branches $project); do
-      [[ $branch = $1 ]] && _wanted projects expl "projects" compadd - "$project"
-    done
+    [[ $keep -eq 1 ]] || continue
+
+    _wanted projects expl "projects" compadd - "$project"
   done
 }
 
