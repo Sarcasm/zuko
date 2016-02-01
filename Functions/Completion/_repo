@@ -181,13 +181,72 @@ _repo-prune() {
 _repo-rebase() {
   _arguments \
     '(- :)'{-h,--help}'[show help message and exit]' \
-    '(-i --interactive)'{-i,--interactive}'[interactive rebase (single project only)]' \
+    '(-i --interactive)'{-i,--interactive}'[interactive rebase]' \
     '(-f --force-rebase)'{-f,--force-rebase}'[pass --force-rebase to git rebase]' \
     '--no-ff[pass --no-ff to git rebase]' \
     '(-q --quiet)'{-q,--quiet}'[pass --quiet to git rebase]' \
     '--autosquash[pass --autosquash to git rebase]' \
     '--whitespace=-[pass --whitespace to git rebase]: :__repo_whitespace_action' \
     '--auto-stash[stash local modifications before starting]' \
+    '(-)*::projects:__repo_projects'
+}
+
+(( $+functions[_repo-smartsync] )) ||
+_repo-smartsync() {
+  __repo_sync --smart
+}
+
+(( $+functions[_repo-stage] )) ||
+_repo-stage() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-i --interactive)'{-i,--interactive}'[use interactive staging]' \
+    '(-)*::projects:__repo_projects'
+}
+
+# TODO: complete existing branch name from other projects, then from this project
+# TODO: complete --all or position arguments, not both (use _alternative?)
+(( $+functions[_repo-start] )) ||
+_repo-start() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '--all[begin branch in all projects]' \
+    ':branch::' \
+    '(-)*::projects:__repo_projects'
+}
+
+(( $+functions[_repo-status] )) ||
+_repo-status() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-j --jobs)'{-j,--jobs=-}'[number of projects to check simultaneously]:number of jobs:' \
+    '(-o --orphans)'{-o,--orphans}'[include objects in working directory outside of repo projects]' \
+    '(-)*::projects:__repo_projects'
+}
+
+(( $+functions[_repo-sync] )) ||
+_repo-sync() {
+  __repo_sync
+}
+
+# TODO: --reviewers completion
+# TODO: --cc completion
+# TODO: --br branch name completion
+# TODO: basically completion for all options
+# TODO: complete only projects with something to publish
+(( $+functions[_repo-upload] )) ||
+_repo-upload() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '-t[send local branch name to Gerrit Code Review]' \
+    '(--re --reviewers)'{--re=-,--reviewers=-}'[request reviews from these people]:reviewers:' \
+    '--cc=-[also send email to these email addresses]:emails:' \
+    '(--br --cbr --current-branch)--br=-[branch to upload]:branch:' \
+    '(--br --cbr --current-branch)'{--cbr,--current-branch}'[upload current git branch]' \
+    '(-d --draft)'{-d,--draft}'[upload as a draft]' \
+    '(-D --destination --dest)'{-D,--destination=-,--dest=-}'[submit for review on this target branch]:branch:' \
+    '--no-verify[do not run the upload hook]' \
+    '--verify[run the upload hook without prompting]' \
     '(-)*::projects:__repo_projects'
 }
 
@@ -202,7 +261,7 @@ _repo_commands() {
 
   initial_commands=(
     init:"install repo in the current working directory"
-    help:"display list of commands"
+    help:"display list of commands or detailed help of a command"
   )
 
   main_commands=(
@@ -219,13 +278,12 @@ _repo_commands() {
     overview:"display overview of unmerged project branches"
     prune:"prune (delete) already merged topics"
     rebase:"rebase local branches on upstream branch"
-
-    # smartsync:"update working tree to the latest known good revision"
-    # stage:"stage file(s) for commit"
-    # start:"start a new branch for development"
-    # status:"show the working tree status"
-    # sync:"update working tree to the latest revision"
-    # upload:"upload changes for code review"
+    smartsync:"update working tree to the latest known good revision"
+    stage:"stage file(s) for commit"
+    start:"start a new branch for development"
+    status:"show the working tree status"
+    sync:"update working tree to the latest revision" # smartsync + bonuses
+    upload:"upload changes for code review"
   )
 
   # 'cherry-pick' only has sense when in a project
@@ -233,6 +291,12 @@ _repo_commands() {
 
   advanced_commands=(
     forall:"Run a shell command in each project"
+
+    # gitc-delete:"delete a GITC Client"
+    # gitc-init:"initialize a GITC Client"
+    # manifest:"manifest inspection utility"
+    # selfupdate:"update repo to the latest version"
+    # version:"display the version of repo"
   )
 
   # TODO: git somewhow manage to have multiple groups for this, see:
@@ -241,6 +305,42 @@ _repo_commands() {
   #        so I don't think it is the proper way to proceed
   _describe -t repo-commands "command" initial_commands -- main_commands
   _describe -t repo-other-commands "advanced command" advanced_commands
+}
+
+(( $+functions[__repo_sync] )) ||
+__repo_sync() {
+  local -a sync_opts
+
+  sync_opts=(
+    '(- :)'{-h,--help}'[show help message and exit]'
+    '(-f --force-broken)'{-f,--force-broken}'[continue sync even if a project fails to sync]'
+    '--force-sync[overwrite an existing git directory if it needs to point to a different object directory]'
+    '(-l --local-only)'{-l,--local-only}"[only update working tree, don't fetch]"
+    '(-n --network-only)'{-n,--network-only}"[fetch only, don't update working tree]"
+    '(-d --detach)'{-d,--detach}'[detach projects back to manifest revision]'
+    '(-c --curent-branch)'{-c,--current-branch}'[fetch only current branch from server]'
+    '(-q --quiet)'{-q,--quiet}'[be more quiet]'
+    '(-j --jobs)'{-j,--jobs=-}'[number of projects to fetch simultaneously]:number of jobs:'
+    '(-m --manifest-name)'{-m,--manifest-name=-}'[temporary manifest to use for this sync]:name.xml:'
+    '--no-clone-bundle[disable use of /clone.bundle on HTTP/HTTPS]'
+    '(-u --manifest-server-username)'{-u,--manifest-server-username=-}'[username to authenticate with the manifest server]:username:'
+    '(-p --manifest-server-password)'{-p,--manifest-server-password=-}'[password to authenticate with the manifest server]:password:'
+    '--fetch-submodules[fetch submodules from server]'
+    "--no-tags[don't fetch tags]"
+    '--optimized-fetch[only fetch projects fixed to sha1 if revision does not exist locally]'
+    '--no-repo-verify[do not verify repo source code]'
+  )
+
+  if [[ $1 != --smart ]]; then
+    sync_opts+=(
+      '(-s --smart-sync)'{-s,--smart-sync}'[smart sync using manifest from a known good build]'
+      '(-t --smart-tag)'{-t,--smart-tag=-}'[smart sync using manifest from a known tag]:tag:'
+    )
+  fi
+
+  _arguments \
+    "${sync_opts[@]}" \
+    '(-)*::projects:__repo_projects'
 }
 
 # http://unix.stackexchange.com/a/64164
