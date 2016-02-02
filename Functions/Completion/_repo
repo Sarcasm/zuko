@@ -343,11 +343,27 @@ __repo_sync() {
     '(-)*::projects:__repo_projects'
 }
 
-# http://unix.stackexchange.com/a/64164
-# FIXME: /Y1, which version of ZSH required for this?
 (( $+functions[__repodir] )) ||
 __repodir () {
-  echo (../)#.repo(/Y1:a:h)
+  emulate -L zsh
+  setopt extendedglob
+  unsetopt interactive_comments
+
+  # 1. Recursive globbing: (../)#
+  #    LESS=+/"^ *Recursive Globbing *$" man zshexpn
+  # 2. Pattern to lookup: .repo
+  # 3. Glob qualifier in parenthesis
+  #    '/' to keep directories
+  #    [1] to limit to the first (closest) match (note: Y1 could be used
+  #        on recent version of but it is not supported on 5.0.2 shipped
+  #        on Ubuntu 14.04)
+  #    LESS=+/"^ *Glob Qualifiers *$" man zshexpn
+  # 4. Modifier
+  #    :h dirname
+  #    LESS=+/"^ *Modifiers *$" man zshexpn
+  #
+  # thanks http://unix.stackexchange.com/a/64164
+  echo (../)#.repo(/[1]:h)
 }
 
 (( $+functions[__gitroot] )) ||
@@ -421,16 +437,7 @@ __repo_branch () {
   # list branches project by project
   for p in $(__repo_projects_fullpath); do
     local p_rel=$(__repo_relpath "$p" $repodir)
-
-    for b in $(__repo_project_branches $p); do
-      if [[ -z branch_to_projects[$b] ]]; then
-        # first time seeing this branch
-        branch_to_projects[$b]=$p_rel
-      else
-        # another project
-        branch_to_projects[$b]+=$'\0'$p_rel
-      fi
-    done
+    for b in $(__repo_project_branches $p); branch_to_projects[$b]+=$p_rel$'\0'
   done
 
   local -a descr projects
@@ -439,10 +446,8 @@ __repo_branch () {
     projects=(${(@0o)v})
     descr+=($k:"in "${(j:, :)projects})
   done
-  # branches=("${(@f)$(__repo_list_branches)}")
-  # _wanted projects expl "branch" compadd -a - branches
-  # _message -e branches "branch"
-  _describe -V -t branches 'branch' descr
+
+  _describe -t branches 'branch' descr
 }
 
 # list repo paths relative to current directory
