@@ -6,6 +6,17 @@
 # http://stackoverflow.com/questions/9000698/completion-when-program-has-sub-commands
 # TODO: list programs, function and styles used
 
+# Note: to look for changes in repo's help, one can do this in a repo project:
+# $ __repo_dump_help > $ZUKODIR/data/repo-help-dump
+# $ cd $ZUKODIR
+# $ bzip2 -f data/repo-help-dump
+# $ git diff data/repo-help-dump.bz2
+#
+# for git diff to work on the bz2, you may have to do:
+# 1. mkdir -p ${XDG_CONFIG_HOME:-~/.config}/git
+# 2. echo '*.bz2 diff=bz2' >> ${XDG_CONFIG_HOME:-~/.config}/git/attributes
+# 3. git config --global diff.bz2.binary true
+# 4. git config --global diff.bz2.textconv bzcat
 # TODO: review _arguments to see if -C is really needed everywhere it is used, I
 # may have overused it
 
@@ -633,6 +644,27 @@ _repo() {
   fi
 
   return 0
+}
+
+(( $+functions[__repo_dump_help] )) ||
+__repo_dump_help () {
+  date --iso-8601
+  echo
+  repo version
+  echo
+  echo repo help --all
+  echo "==============="
+  echo
+  repo help --all
+  echo
+
+  repo help --all | grep "^  " | while read command descr; do
+    echo
+    echo
+    echo $command
+    print ${(l:${#command}::=:)}
+    repo help $command
+  done
 }
 
 _repo "$@"
