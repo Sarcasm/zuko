@@ -61,8 +61,10 @@ zstyle ':completion:*:*:rm:*:*' file-patterns \
 # -- man zshcompsys
 zmodload zsh/complist
 
+# _approximate
+
 # The following lines were added by compinstall
-zstyle ':completion:*' completer _complete _ignored _approximate
+zstyle ':completion:*' completer _complete _ignored
 zstyle ':completion:*' file-sort modification
 zstyle ':completion:*' format '%B--- %d%b'
 zstyle ':completion:*' group-name ''
