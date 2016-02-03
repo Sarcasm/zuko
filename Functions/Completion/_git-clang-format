@@ -1,6 +1,10 @@
 #compdef git-clang-format
 #description run clang-format on index
 
+# TODO: commands + path to executable
+# zmodload -i zsh/parameter
+# ${(k)commands}
+
 # TODO: more options
 # -f, --force           allow changes to unstaged files
 # -p, --patch           select hunks interactively
@@ -9,7 +13,7 @@
 # -v, --verbose         print extra information
 _arguments \
     '--help[show help message and exit]' \
-    '--binary[path to clang-format]' \
-    '--commit[default commit to use if none is specified]' \
+    '--binary[path to clang-format]:binary:' \
+    '--commit[default commit to use if none is specified]:commit:' \
     '--diff[print a diff instead of applying the changes]' \
     '--extensions[comma-separated list of file extensions to format]'
