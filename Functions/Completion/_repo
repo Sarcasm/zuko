@@ -17,28 +17,9 @@ _repo-help() {
     ': :_repo_commands'
 }
 
-# TODO: --manifest-url/--repo-url should be use __git_any_repositories instead of _urls?
-# TODO: --manifest-branch/--repo-branch should be __git_*revision*?
-# TODO: for --depth use __git_guard_number depth
-# TODO: could have completion for --groups=, --platform=
 (( $+functions[__repo-init] )) ||
 _repo-init() {
-  _arguments \
-    '(- :)'{-h,--help}'[show help message and exit]' \
-    '(-q --quiet)'{-q,--quiet}'[be quiet]' \
-    '(-u --manifest-url)'{-u,--manifest-url=-}'[manifest repository location]: :_urls' \
-    '(-b --manifest-branch)'{-b,--manifest-branch=-}'[manifest branch or revision]:revision:' \
-    '(-m --manifest-name)'{-m,--manifest-name=-}'[initial manifest file]:name.xml:' \
-    '--mirror[create a replica of the remote repositories rather than a client working directory]' \
-    '--reference=-[location of mirror directory]: :_directories' \
-    '--depth=-[create a shallow clone with given depth]:depth:' \
-    '--archive[checkout an archive instead of a git repository for each project]' \
-    '(-g --groups)'{-g,--groups=-}'[restrict manifest projects to ones with specified group(s)]:group:' \
-    '(-p --platform)'{-p,--platform=-}'[restrict manifest projects to ones with a specified platform group]:platform:' \
-    '--repo-url=-[repo repository location]: :_urls' \
-    '--repo-branch=-[repo branch or revision]:revision:' \
-    '--no-repo-verify[do not verify repo source code]' \
-    '--config-name[Always prompt for name/e-mail]'
+  __repo_init
 }
 
 # TODO: branch completion
@@ -250,6 +231,40 @@ _repo-upload() {
     '(-)*::projects:__repo_projects'
 }
 
+(( $+functions[_repo-gitc-delete] )) ||
+_repo-gitc-delete() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '--force[force the deletion]'
+}
+
+(( $+functions[_repo-gitc-init] )) ||
+_repo-gitc-init() {
+  __repo_init --gitc
+}
+
+# TODO: --suppress-upstream-revision only available when --revision-as-HEAD?
+(( $+functions[_repo-manifest] )) ||
+_repo-manifest() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-r --revision-as-HEAD)'{-r,--revision-as-HEAD}'[save revisions as current HEAD]' \
+    '--suppress-upstream-revision[if in -r mode, do not write the upstream field]' \
+    '(-o --output-file)'{-o,--output-file=-}'[file to save the manifest to]:manifest filename:'
+}
+
+(( $+functions[_repo-selfupdate] )) ||
+_repo-selfupdate() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '--no-repo-verify[do not verify repo source code]'
+}
+
+(( $+functions[_repo-version] )) ||
+_repo-version() {
+  _arguments '(- :)'{-h,--help}'[show help message and exit]'
+}
+
 # 2 categories
 # main commands - commonly used commands
 # expert commands - other[ recognized]/expert commands
@@ -291,12 +306,11 @@ _repo_commands() {
 
   advanced_commands=(
     forall:"Run a shell command in each project"
-
-    # gitc-delete:"delete a GITC Client"
-    # gitc-init:"initialize a GITC Client"
-    # manifest:"manifest inspection utility"
-    # selfupdate:"update repo to the latest version"
-    # version:"display the version of repo"
+    gitc-delete:"delete a GITC Client"
+    gitc-init:"initialize a GITC Client"
+    manifest:"manifest inspection utility"
+    selfupdate:"update repo to the latest version"
+    version:"display the version of repo"
   )
 
   # TODO: git somewhow manage to have multiple groups for this, see:
@@ -305,6 +319,43 @@ _repo_commands() {
   #        so I don't think it is the proper way to proceed
   _describe -t repo-commands "command" initial_commands -- main_commands
   _describe -t repo-other-commands "advanced command" advanced_commands
+}
+
+# TODO: --manifest-url/--repo-url should be use __git_any_repositories instead of _urls?
+# TODO: --manifest-branch/--repo-branch should be __git_*revision*?
+# TODO: for --depth use __git_guard_number depth
+# TODO: could have completion for --groups=, --platform=
+(( $+functions[__repo_init] )) ||
+__repo_init() {
+  local -a init_opts
+
+  init_opts=(
+    '(- :)'{-h,--help}'[show help message and exit]'
+    '(-q --quiet)'{-q,--quiet}'[be quiet]'
+    '(-u --manifest-url)'{-u,--manifest-url=-}'[manifest repository location]: :_urls'
+    '(-b --manifest-branch)'{-b,--manifest-branch=-}'[manifest branch or revision]:revision:'
+    '(-m --manifest-name)'{-m,--manifest-name=-}'[initial manifest file]:name.xml:'
+    '--mirror[create a replica of the remote repositories rather than a client working directory]'
+    '--reference=-[location of mirror directory]: :_directories'
+    '--depth=-[create a shallow clone with given depth]:depth:'
+    '--archive[checkout an archive instead of a git repository for each project]'
+    '(-g --groups)'{-g,--groups=-}'[restrict manifest projects to ones with specified group(s)]:group:'
+    '(-p --platform)'{-p,--platform=-}'[restrict manifest projects to ones with a specified platform group]:platform:'
+    '--repo-url=-[repo repository location]: :_urls'
+    '--repo-branch=-[repo branch or revision]:revision:'
+    '--no-repo-verify[do not verify repo source code]'
+    '--config-name[Always prompt for name/e-mail]'
+  )
+
+  if [[ $1 == --gitc ]]; then
+    init_opts+=(
+      '(-f --manifest-file)'{-f,--manifest-file=-}'[optional manifest file to use for this GITC client]:manifest file:'
+      '(-c --gitc-client)'{-c,--gitc-client=-}'[the name of the gitc_client instance to create or modify]:gitc client:'
+      '1:client name:'
+    )
+  fi
+
+  _arguments "${init_opts[@]}"
 }
 
 (( $+functions[__repo_sync] )) ||
