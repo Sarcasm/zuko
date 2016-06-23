@@ -11,6 +11,7 @@ path[1,0]=(
     ~/bin                       # custom binaries
     ~/pkg/bin                   # user's stow packages
     ~/src/arcanist/bin          # LLVM code review tool/Phabricator
+    ~/.local/bin                # pip install --user binaries
 )
 
 # cleanup path, remove entries that do not exists and make sure it does not
