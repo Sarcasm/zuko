@@ -179,6 +179,9 @@ autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey "^X^e" edit-command-line # bash's default
 
+# region-related keybinding(s), similar to the one(s) in Emacs
+bindkey "^W" kill-region
+
 # TODO:
 # - bind describe-key-briefly. maybe ^H can be unbound?
 #
