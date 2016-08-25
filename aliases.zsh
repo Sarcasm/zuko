@@ -8,6 +8,8 @@ else
     alias ll='ls -l'
 fi
 
+alias ag="ag --pager='less -r -F -X'"
+
 # for suffix aliases, check man zshcontrib
 # execute-never
 #        This style is useful in combination with execute-as-is. It is set to an
