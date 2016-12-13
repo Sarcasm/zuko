@@ -58,14 +58,15 @@ prompt_zuko_preview () {
 # example here: http://aperiodic.net/phil/prompt/ and man terminfo look for acsc
 # return value ($?) failure in rprompt or on its own line in a multiline prompt?
 # print as many $ as there is SHLEVEl
+# see prompt with good use of zstyle: http://zshwiki.org/home/config/prompt
 prompt_zuko_setup () {
     autoload -Uz vcs_info
 
-    # start with empty prompt and then append elements to the prompt with += so
-    # that it's easier to document, comment out individual elements
+    # start with empty prompt and then append elements to the prompt with +=
+    # so that it's easier to document individual elements
     PS1=""
     PS1+='%(2V.%F{green}%2v jobs | %f .)' # jobs (optional)
-    PS1+='%F{red}%35<...<%~%<<%f' # directory
+    PS1+='%F{red}%35<...<%~%<<%f'         # directory
     PS1+='$ '
 
     PS2='%(4_:... :)%3_> '

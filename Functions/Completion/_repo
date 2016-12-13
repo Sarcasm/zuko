@@ -33,8 +33,6 @@ _repo-init() {
   __repo_init
 }
 
-# TODO: branch completion
-# TODO: project completion based on selected branch
 (( $+functions[__repo-abandon] )) ||
 _repo-abandon() {
   local curcontext="$curcontext"

@@ -61,6 +61,12 @@ zstyle ':completion:*:*:rm:*:*' file-patterns \
 # -- man zshcompsys
 zmodload zsh/complist
 
+zstyle ':completion:*:*:git*:*' use-fallback false
+zstyle ':completion:*:*:repo*:*' use-fallback false
+zstyle ':completion:*:*:compdb*:*' use-fallback false
+
+zstyle ':completion:*' auto-description 'specify: %d'
+
 # _approximate
 
 # The following lines were added by compinstall
