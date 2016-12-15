@@ -194,15 +194,30 @@ _repo-stage() {
     '(-)*::projects:__repo_projects'
 }
 
-# TODO: complete existing branch name from other projects, then from this project
-# TODO: complete --all or position arguments, not both (use _alternative?)
+# TODO: complete existing branch name from other projects,
+# then from this project
 (( $+functions[_repo-start] )) ||
 _repo-start() {
-  _arguments \
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  _arguments -C : \
     '(- :)'{-h,--help}'[show help message and exit]' \
-    '--all[begin branch in all projects]' \
-    ':branch::' \
-    '(-)*::projects:__repo_projects'
+    ': :__repo_branch' \
+    '*::: :->optall-or-projects'
+
+  if [[ $state = optall-or-projects ]]; then
+    # if first word, add --all to the propositions
+    if [[ ${#words} -eq 1 ]]; then
+      optall_descr=(--all:"begin branch in all projects")
+      _describe -t repo-start-allopt -O "all" optall_descr
+    fi
+    # if --all not in words, propose all unspecified projects
+    if [[ ${words[(i)--all]} -gt ${#words} ]]; then
+      local -a repo_projects_args
+      for project in ${words[@]}; repo_projects_args+=(--skip "$project")
+     __repo_projects --without-branch $line[1] ${repo_projects_args[@]}
+     fi
+  fi
 }
 
 (( $+functions[_repo-status] )) ||
@@ -515,6 +530,7 @@ __repo_branch () {
 #
 # Supported options:
 # --with-branch BRANCH (can be specified multiple times)
+# --without-branch BRANCH (can be specified multiple times)
 #
 # TODO: check presence of realpath
 # TODO: the current project, which can be called '.' is the shortest path
@@ -531,11 +547,13 @@ __repo_branch () {
 (( $+functions[__repo_projects] )) ||
 __repo_projects () {
   local p current_project p_rel mydir=$(pwd) keep
-  local -a projects branches
+  local -a projects branches without_branches skip
 
-  zparseopts -D -E -- -with-branch+:=branches
+  zparseopts -D -E -- -with-branch+:=branches -without-branch+:=without_branches -skip+:=skip
 
   branches=("${(@)branches:#--with-branch}")
+  without_branches=("${(@)without_branches:#--without-branch}")
+  skip=("${(@)skip:#--skip}")
 
   for p in $(__repo_projects_fullpath); do
     p_rel=$(__repo_relpath "$p" $mydir)
@@ -552,6 +570,10 @@ __repo_projects () {
   [[ -n $current_project ]] && projects[${projects[(i)$current_project]}]=.
 
   for project in $projects; do
+    if [[ ${skip[(i)$project]} -le ${#skip} ]]; then
+      continue
+    fi
+
     keep=1
 
     # if --with-branch is specified, keep only projects whose branches match
@@ -560,6 +582,18 @@ __repo_projects () {
       for branch in $(__repo_project_branches $project); do
         if [[ ${branches[(i)$branch]} -le ${#branches} ]]; then
           keep=1
+          break
+        fi
+      done
+    fi
+
+    # could factorize this a bit with --with-branch test,
+    # so that only one call to __repo_project_branches is made,
+    # but for now --with-branch and --without-branch aren't used in combination
+    if (( ${+without_branches[1]} )); then
+      for branch in $(__repo_project_branches $project); do
+        if [[ ${without_branches[(i)$branch]} -le ${#without_branches} ]]; then
+          keep=0
           break
         fi
       done
