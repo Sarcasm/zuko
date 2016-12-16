@@ -209,7 +209,7 @@ _repo-start() {
     # if first word, add --all to the propositions
     if [[ ${#words} -eq 1 ]]; then
       optall_descr=(--all:"begin branch in all projects")
-      _describe -t repo-start-allopt -O "all" optall_descr
+      _describe -t repo-start-allopt "all" optall_descr
     fi
     # if --all not in words, propose all unspecified projects
     if [[ ${words[(i)--all]} -gt ${#words} ]]; then
