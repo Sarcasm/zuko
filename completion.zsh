@@ -67,6 +67,13 @@ zstyle ':completion:*:*:compdb*:*' use-fallback false
 
 zstyle ':completion:*' auto-description 'specify: %d'
 
+# to test repo download completion without a Gerrit server:
+# zstyle ':completion:*:repo-review-url' command 'echo dummy'
+# zstyle ':completion:*:gerrit-list-project-reviews' command 'cat "$ZDOTDIR/repo_completion/reviews/${GERRIT_PROJECT}.TEXT"'
+
+zstyle ':completion:*:*:repo-download:*' cols '[%t%0(T..@)%b]' '%s' '(%a)'
+zstyle ':completion:*:repo*:change:*' list-colors "=(#b)([0-9/]##) *=$color[none]=$color[bold]"
+
 # _approximate
 
 # The following lines were added by compinstall

@@ -106,17 +106,41 @@ _repo-diffmanifests() {
 }
 
 # TODO: it is a pair of parameters that repo download takes
-# can -c be interleaved between the set?
+# can -c be interleaved inbetween pairs?
 # TODO: completion from open reviews on gerrit
 (( $+functions[_repo-download] )) ||
 _repo-download() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
   _arguments -C \
     '(- :)'{-h,--help}'[show help message and exit]' \
     '(-c --cherry-pick)'{-c,--cherry-pick}'[cherry-pick instead of checkout]' \
     '(-r --revert)'{-r,--revert}'[revert instead of checkout]' \
     '(-f --ff-only)'{-f,--ff-only}'[force fast-forward merge]' \
-    ':project:__repo_projects' \
-    ':change/patchset: '
+    '*::: :->project-or-change'
+
+  if [[ $state = project-or-change ]]; then
+    case $(( ${#words} % 2 )) in
+      (1)
+        __repo_projects
+        ;;
+
+      (0)
+        project="$words[((CURRENT - 1))]"
+
+        local -a args
+        args=(--project "$project")
+        for (( i = 1; i < (($#words - 1)); i += 2 )) do
+            if [[ "$words[$i]" = "$project" ]]; then
+              args+=(--skip ${words[(($i + 1))]%%/*})
+            fi
+        done
+        curcontext="${curcontext%:*}:change"
+        __repo_reviews "$args[@]"
+        ;;
+    esac
+  fi
 }
 
 (( $+functions[_repo-grep] )) ||
@@ -603,6 +627,188 @@ __repo_projects () {
 
     _wanted projects expl "projects" compadd - "$project"
   done
+}
+
+(( $+functions[__repo_list_reviews] )) ||
+__repo_list_reviews () {
+  # --current-patch-set is needed to produce full results,
+  # we want to propose the latest revision of a change in the completion
+  ssh -o BatchMode=yes -a -x \
+      "${GERRIT_URL}" \
+      gerrit \
+      query \
+      --current-patch-set \
+      --format=TEXT \
+      status:open \
+      "project:${GERRIT_PROJECT}"
+}
+
+(( $+functions[__repo_gerrit_query_project] )) ||
+__repo_gerrit_query_project () {
+  GERRIT_URL="$1" GERRIT_PROJECT="$2" \
+            _call_program gerrit-list-project-reviews __repo_list_reviews
+}
+
+(( $+functions[__repo_project_path_name] )) ||
+__repo_project_path_name () {
+  _call_program repo-project-path-name repo list -n "$1"
+}
+
+(( $+functions[__repo_get_review_url_do] )) ||
+__repo_get_review_url_do () {
+  # Get the gerrit server.
+  #
+  # One manifest can have multiple remote,
+  # and review server associated to this remote or not.
+  # Since there are multiple possibilities,
+  # it's better to query the project than to look in the manifest.
+  #
+  # This could be smarter but it seems difficult to do the right thing.
+  #
+  # I think ideally we should find the project's remote defined by the repo
+  # manifest.
+  # And then query the git config 'remote.<remote>.review'.
+  #
+  # To make things simpler, we pick up any remote with a review URL.
+  # This should be correct for most people,
+  # but might not be for those who specify multiples review URLs.
+  # It has the merit of being simple.
+  #
+  # Additionally 'repo-review-url' can be customized to one's need.
+  reviews=$(git -C "$1" config --local --get-regexp 'remote\..+\.review')
+  echo $reviews[(w)2]
+}
+
+(( $+functions[__repo_get_review_url] )) ||
+__repo_get_review_url () {
+  _call_program repo-review-url __repo_get_review_url_do
+}
+
+(( $+functions[__repo_format_table] )) ||
+__repo_format_table () {
+  [[ $# -ne 2 ]] && [[ $# -ne 3 ]] && {
+    1>&2 echo "error: bad argument __repo_format_table";
+    return;
+  }
+
+  # first pass to find the maximum lengths
+  local -a max_lengths
+  for row in ${(P)2}
+  do
+    cols=("${(p@s:\0:)row[1,-2]}")
+    for (( i = 1; i <= $#cols; i++ ))
+    do
+      # last column does not need to be padded
+      [[ $i -eq $#cols ]] && continue
+      if [[ $#max_lengths -lt $i ]] || [[ $max_lengths[$i] -lt $#cols[$i] ]]
+      then
+        max_lengths[$i]=$#cols[$i]
+      fi
+    done
+  done
+
+  local row_str
+  # http://zshwiki.org/home/scripting/paramflags#rexprstring1string2flag
+  # first pass to find the maximum lengths
+  for row in ${(P)2}
+  do
+    cols=("${(p@s:\0:)row[1,-2]}")
+    row_str=""
+    for (( i = 1; i <= $#cols; i++ ))
+    do
+      [[ $i -gt 1 ]] && [[ $# -gt 2 ]] && row_str+="$3"
+      row_str+="${(r:max_lengths[i]:::)cols[$i]}"
+    done
+    # Ugly way to remove trailing whitespaces,
+    # in case some columns in the end are empty.
+    # This is probably not necessary, we don't care
+    # if there are a few trailing whitespaces...
+    row_str="${row_str[1, (( -${#row_str##*[^ ]} -1 ))]}"
+    set -A $1 "${(P)1[@]}" "$row_str"
+  done
+}
+
+(( $+functions[__repo_reviews] )) ||
+__repo_reviews () {
+  local -a changes cols descriptions entries entry_lines project_path skip
+  local fmt_str review_cols
+
+  zparseopts -D -E -- -project:=project_path -skip+:=skip
+
+  skip=("${(@)skip:#--skip}")
+  project_name=$(__repo_project_path_name "${project_path[2]}")
+
+  gerrit_url=$(__repo_get_review_url "${project_path[2]}")
+
+  [[ -n "${gerrit_url}" ]] || _message -r "Notice: Gerrit URL not found"
+
+  # query project's open reviews
+  zstyle -a ":completion:${curcontext}:" cols cols || cols=()
+  entries=("${(@ps:\n\n:)$(__repo_gerrit_query_project "${gerrit_url}" "${project_name}")}")
+
+  # assumes indentation level is reliable...
+  typeset -A key_to_pattern
+  key_to_pattern=(
+    branch   "  branch: "
+    topic    "  topic: "
+    change   "  number: "
+    subject  "  subject: "
+    patchset "    number: "
+    name     "      name: "     # what name exactly, patchset uploader for now?
+  )
+
+  for entry in $entries; do
+    # only work out on entries starting with "^change"
+    [[ $entry =~ '^change ' ]] || continue
+
+    # split entry in an array
+    entry_lines=("${(@f)entry}")
+
+    local -A entry_hash
+    for key in ${(k)key_to_pattern}
+    do
+      local idx=${entry_lines[(i)${key_to_pattern[$key]}*]}
+      [[ ${idx} -le ${#entry_lines} ]] || continue
+      entry_hash[$key]=${entry_lines[$idx]#${key_to_pattern[$key]}}
+    done
+
+    [[ ${skip[(i)${entry_hash[change]}]} -le ${#skip} ]] && continue
+
+    # reset and fill review_cols
+    # review_cols is a null-separated list of strings
+    review_cols=""
+    for col_fmt in ${cols[@]}
+    do
+      zformat -f fmt_str "$col_fmt" \
+              a:"${entry_hash[name]}" \
+              b:"${entry_hash[branch]}" \
+              t:"${entry_hash[topic]}" \
+              T:${#entry_hash[topic]} \
+              s:"${entry_hash[subject]}"
+      review_cols+="${fmt_str}"$'\0'
+    done
+
+    changes+="${entry_hash[change]}/${entry_hash[patchset]}"
+    descriptions+="${review_cols}"
+
+    unset entry_hash
+  done
+
+  # transform the associative array in a description array
+  # display review cols as a table, aligning the columns
+  local -a reviews descriptions_table
+  __repo_format_table descriptions_table descriptions "  "
+
+  for (( i = 1; i <= $#changes; i++ ))
+  do
+    if [[ -z $descriptions_table ]]; then
+      reviews+=$changes[$i]
+    else
+      reviews+=$changes[$i]:"$descriptions_table[$i]"
+    fi
+  done
+
+  _describe -t gerrit-reviews "change/patchset" reviews $*
 }
 
 (( $+functions[__repo_whitespace_action] )) ||
