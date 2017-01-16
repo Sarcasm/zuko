@@ -72,6 +72,7 @@ zstyle ':completion:*' auto-description 'specify: %d'
 # zstyle ':completion:*:gerrit-list-project-reviews' command 'cat "$ZDOTDIR/repo_completion/reviews/${GERRIT_PROJECT}.TEXT"'
 
 zstyle ':completion:*:*:repo-download:*' cols '[%t%0(T..@)%b]' '%s' '(%a)'
+autoload -Uz colors && colors
 zstyle ':completion:*:repo*:change:*' list-colors "=(#b)([0-9/]##) *=$color[none]=$color[bold]"
 
 # _approximate
