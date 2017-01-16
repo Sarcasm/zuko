@@ -625,7 +625,9 @@ __repo_projects () {
 
     [[ $keep -eq 1 ]] || continue
 
-    _wanted projects expl "projects" compadd - "$project"
+    # FIXME: the '|| true' par is here because something is wrong
+    # maybe some arguments should be passed to compadd, e.g. 'compadb "$@" -'?
+    _wanted projects expl "projects" compadd - "$project" || true
   done
 }
 
