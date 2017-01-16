@@ -681,7 +681,7 @@ __repo_get_review_url_do () {
 
 (( $+functions[__repo_get_review_url] )) ||
 __repo_get_review_url () {
-  _call_program repo-review-url __repo_get_review_url_do
+  _call_program repo-review-url __repo_get_review_url_do "$@"
 }
 
 (( $+functions[__repo_format_table] )) ||
