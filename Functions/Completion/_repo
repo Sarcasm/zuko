@@ -268,8 +268,8 @@ _repo-upload() {
   _arguments \
     '(- :)'{-h,--help}'[show help message and exit]' \
     '-t[send local branch name to Gerrit Code Review]' \
-    '(--re --reviewers)'{--re=-,--reviewers=-}'[request reviews from these people]:reviewers:' \
-    '--cc=-[also send email to these email addresses]:emails:' \
+    '(--re --reviewers)'{--re=-,--reviewers=-}'[request reviews from these people]:reviewers:_email_addresses -s, -c' \
+    '--cc=-[also send email to these email addresses]: :_email_addresses -s, -c' \
     '(--br --cbr --current-branch)--br=-[branch to upload]:branch:' \
     '(--br --cbr --current-branch)'{--cbr,--current-branch}'[upload current git branch]' \
     '(-d --draft)'{-d,--draft}'[upload as a draft]' \
