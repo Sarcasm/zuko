@@ -5,9 +5,7 @@ typeset -U fpath
 # prepending is used to be able to override existing definitions
 fpath[1,0]=($ZUKODIR/Functions/*(/))
 
-for file in $ZUKODIR/*.zsh; do
-    source $file
-done
+for file in $ZUKODIR/*.zsh; . $file
 
 # TODO: mansection function
 # mansection zshcompsys "COMPLETION SYSTEM CONFIGURATION"
